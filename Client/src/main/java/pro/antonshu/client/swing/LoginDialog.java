@@ -1,17 +1,17 @@
 package pro.antonshu.client.swing;
 
-import pro.antonshu.network.message.AuthMessage;
+import pro.antonshu.service.UserRepository;
+import pro.antonshu.service.UserRepositoryImpl;
 
 import javax.swing.*;
 import javax.swing.border.LineBorder;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.io.IOException;
 
 public class LoginDialog extends JDialog {
 
-    private NettyClient net;
+    private UserRepository userRepo;
     private JTextField tfUsername;
     private JPasswordField pfPassword;
     private JLabel lbUsername;
@@ -29,9 +29,9 @@ public class LoginDialog extends JDialog {
         return user;
     }
 
-    public LoginDialog(Frame parent, NettyClient net) {
+    public LoginDialog(Frame parent) {
         super(parent, "Логин", true);
-        this.net = net;
+        this.userRepo = new UserRepositoryImpl();
 
         JPanel panel = new JPanel(new GridBagLayout());
         GridBagConstraints cs = new GridBagConstraints();
@@ -72,28 +72,12 @@ public class LoginDialog extends JDialog {
         btnLogin.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                try {
-                    net.sendMsg(new AuthMessage(tfUsername.getText(), String.valueOf(pfPassword.getPassword())));
-                    AuthMessage response = (AuthMessage) net.readObject();
-                    if (response.getAuthorize()) {
-                        authorized = true;
-                        user = response.getLogin();
-                    } else {
-                        JOptionPane.showMessageDialog(LoginDialog.this,
-                                "Ошибка авторизации. Неверные логин или пароль",
-                                "Авторизация",
-                                JOptionPane.ERROR_MESSAGE);
-                        return;
-                    }
-                } catch (IOException ex) {
-                    ex.printStackTrace();
-                    JOptionPane.showMessageDialog(LoginDialog.this,
-                            "Ошибка авторизации. Проблемы с сетью",
-                            "Авторизация",
-                            JOptionPane.ERROR_MESSAGE);
+                if (userRepo.authUser(tfUsername.getText(), String.valueOf(pfPassword.getPassword()))) {
+                    authorized = true;
+                    user = tfUsername.getText();
+                } else {
+                    showErrorMessage();
                     return;
-                } catch (ClassNotFoundException ex) {
-                    ex.printStackTrace();
                 }
                 dispose();
             }
@@ -114,5 +98,12 @@ public class LoginDialog extends JDialog {
         pack();
         setResizable(false);
         setLocationRelativeTo(parent);
+    }
+
+    private void showErrorMessage() {
+        JOptionPane.showMessageDialog(LoginDialog.this,
+                                "Ошибка авторизации. Неверные логин или пароль",
+                                "Авторизация",
+                                JOptionPane.ERROR_MESSAGE);
     }
 }

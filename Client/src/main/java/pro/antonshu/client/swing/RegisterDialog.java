@@ -1,18 +1,18 @@
 package pro.antonshu.client.swing;
 
-import pro.antonshu.network.message.AuthMessage;
+import pro.antonshu.service.UserRepository;
+import pro.antonshu.service.UserRepositoryImpl;
 
 import javax.swing.*;
 import javax.swing.border.LineBorder;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.io.IOException;
 
 
 public class RegisterDialog extends JDialog {
 
-    private NettyClient net;
+    private UserRepository userRepo;
     private JTextField tfUsername;
     private JPasswordField tfPassword;
     private JPasswordField tfPasswordConfirm;
@@ -24,9 +24,9 @@ public class RegisterDialog extends JDialog {
     private boolean registered;
     private String user;
 
-    public RegisterDialog(Frame parent, NettyClient net) {
+    public RegisterDialog(Frame parent) {
         super(parent, "Регистрация", true);
-        this.net = net;
+        this.userRepo = new UserRepositoryImpl();
 
         JPanel panel = new JPanel(new GridBagLayout());
         GridBagConstraints cs = new GridBagConstraints();
@@ -79,33 +79,18 @@ public class RegisterDialog extends JDialog {
         btnRegister.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                if (!String.valueOf(tfPassword.getPassword()).equals(String.valueOf(tfPasswordConfirm.getPassword()))) {
-                    JOptionPane.showMessageDialog(RegisterDialog.this,
-                            "Пароли не совпадают. Проверьте соответсвие паролей.",
-                            "Регистрация",
-                            JOptionPane.ERROR_MESSAGE);
-                    return;
-                } else {
-                    net.sendMsg(new AuthMessage(lbUsername.getText(), String.valueOf(tfPassword.getPassword()),true));
-                    try {
-                        AuthMessage response = (AuthMessage) net.readObject();
-                        if (response.getAuthorize()) {
-                            registered = true;
-                            user = response.getLogin();
-                            JOptionPane.showMessageDialog(RegisterDialog.this,
-                                    "Вы успешно зарегистрированы. Закройте окно, чтобы продолжить.",
-                                    "Регистрация",
-                                    JOptionPane.INFORMATION_MESSAGE);
-                        } else {
-                            JOptionPane.showMessageDialog(RegisterDialog.this,
-                                    "Ошибка регистрации. Попробуйте позже",
-                                    "Авторизация",
-                                    JOptionPane.ERROR_MESSAGE);
-                            return;
-                        }
-                    } catch (ClassNotFoundException | IOException ex) {
-                        ex.printStackTrace();
+                if (passFieldsEquals()) {
+                    if (userRepo.regNewUser(lbUsername.getText(), String.valueOf(tfPassword.getPassword()))) {
+                        registered = true;
+                        user = lbUsername.getText();
+                        showMessage(true,"Вы успешно зарегистрированы. Закройте окно, чтобы продолжить.");
+                    } else {
+                        showMessage(false, "Ошибка регистрации. Попробуйте позже");
+                        return;
                     }
+                } else {
+                    showMessage(false, "Пароли не совпадают. Проверьте соответсвие паролей.");
+                    return;
                  }
                 dispose();
             }
@@ -128,6 +113,22 @@ public class RegisterDialog extends JDialog {
         setLocationRelativeTo(parent);
     }
 
+    private void showMessage(Boolean OK, String message) {
+        int type;
+        if(OK) {
+            type = 1;
+        } else {
+            type = 0;
+        }
+        JOptionPane.showMessageDialog(RegisterDialog.this,
+                message,
+                "Регистрация",
+                type);
+    }
+
+    private boolean passFieldsEquals() {
+        return String.valueOf(tfPassword.getPassword()).equals(String.valueOf(tfPasswordConfirm.getPassword()));
+    }
     public boolean isRegistered() {
         return registered;
     }
